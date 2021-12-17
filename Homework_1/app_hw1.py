@@ -24,11 +24,14 @@ def get_data(config: dict, token: str, process_date=None):
         print(f'Error for process_date: {process_date} {response.json()}- Details{ex}')
 
 def get_jwt_token(url: str, username: str, password: str) -> str:
-    headers = {'Content-Type': 'application/json'}
-    data = json.dumps({"username": username, "password": password})
-    r = requests.post(url, headers=headers, data=data)
-    r.raise_for_status()
-    return r.json()['access_token']
+    try:
+        headers = {'Content-Type': 'application/json'}
+        data = json.dumps({"username": username, "password": password})
+        r = requests.post(url, headers=headers, data=data)
+        r.raise_for_status()
+        return r.json()['access_token']
+    except Exception as ex:
+        raise TypeError(ex)
 
 def main():
     config = Config(os.path.join('.', 'config.yaml')).get_config('rd_api')
