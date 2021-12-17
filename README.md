@@ -1,1 +1,5 @@
-# rd_de_4_homework
+# robotdreams - Data Engineering: Homework
+
+[About course program](https://robotdreams.cc/course/data-engineering)
+
+
