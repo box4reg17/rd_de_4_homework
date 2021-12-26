@@ -56,3 +56,20 @@ order by c.active, count(*) desc
 --7. вывести категорию фильмов, у которой самое большое кол-во часов суммарной аренды
 --в городах (customer.address_id в этом city), и которые начинаются на букву “a”.
 --То же самое сделать для городов в которых есть символ “-”. Написать все в одном запросе.
+SELECT c."name" as Category
+,sum(DATE_PART('day', r.return_date::timestamp - r.rental_date::timestamp) * 24
+			+ DATE_PART('hour', r.return_date::timestamp - r.rental_date::timestamp)) as hours
+FROM public.rental r
+join inventory i on i.inventory_id = r.inventory_id
+join film_category fc on fc.film_id = i.film_id
+join category c on c.category_id = fc.category_id
+where r.customer_id in ( select c.customer_id from customer c
+			join address a ON a.address_id = c.address_id
+			join city c2  on c2.city_id = a.city_id
+			where c2.city ilike 'a%' or c2.city like '%-%')
+group by c."name"
+order by sum(DATE_PART('day', r.return_date::timestamp - r.rental_date::timestamp) * 24
+			+ DATE_PART('hour', r.return_date::timestamp - r.rental_date::timestamp)) desc
+limit 1
+;
+
