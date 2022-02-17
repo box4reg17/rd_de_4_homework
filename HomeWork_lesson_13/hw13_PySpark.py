@@ -37,12 +37,10 @@ def task_1():
         .sort(F.desc('count'))
     count_films_by_category_df.show()
 
-
 def task_2():
     """
         вывести 10 актеров, чьи фильмы большего всего арендовали, отсортировать по убыванию.
     """
-    pass
     rental_df = spark.read.jdbc(url=pg_url, table='rental', properties=pg_properties)
     inventory_df = spark.read.jdbc(url=pg_url, table='inventory', properties=pg_properties)
     film_actor_df = spark.read.jdbc(url=pg_url, table='film_actor', properties=pg_properties)
@@ -56,7 +54,8 @@ def task_2():
         .select(film_actor_df.actor_id, F.col('Actor_'))\
         .groupBy(film_actor_df.actor_id, F.col('Actor_'))\
         .count()\
-        .sort(F.desc('count'))
+        .sort(F.desc('count'))\
+        .limit(10)
     top10_actors_df.show()
 
 def task_3():
@@ -106,7 +105,6 @@ def task_5():
     """
     pass
 
-
 def task_6():
     """
         вывести города с количеством активных и неактивных клиентов (активный — customer.active = 1).
@@ -126,7 +124,6 @@ def task_6():
     
     cities_user_stat_df.show(1000, 100)
 
-
 def task_7():
     """
         вывести категорию фильмов, у которой самое большое кол-во часов суммарной аренды в 
@@ -134,7 +131,6 @@ def task_7():
         То же самое сделать для городов в которых есть символ “-”.
     """
     pass
-
 
 
 if __name__ == '__main__':
