@@ -1,4 +1,4 @@
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 import pyspark.sql.functions as F
 import psycopg2
 import os
@@ -103,7 +103,31 @@ def task_5():
         вывести топ 3 актеров, которые больше всего появлялись в фильмах в категории “Children”.
         Если у нескольких актеров одинаковое кол-во фильмов, вывести всех..
     """
-    pass
+    film_category_df = spark.read.jdbc(url=pg_url, table='film_category', properties=pg_properties)
+    film_actor_df = spark.read.jdbc(url=pg_url, table='film_actor', properties=pg_properties)
+    actor_df = spark.read.jdbc(url=pg_url, table='actor', properties=pg_properties)
+    category_df = spark.read.jdbc(url=pg_url, table='category', properties=pg_properties)
+    Children_category_id = category_df\
+        .where(category_df.name == 'Children')\
+        .select(category_df.category_id)\
+        .limit(1).collect()[0][0]
+
+    top_3_actors_df = film_category_df\
+        .join(film_actor_df, film_actor_df.film_id == film_category_df.film_id , 'inner')\
+        .join(actor_df, actor_df.actor_id == film_actor_df.actor_id, 'inner')\
+        .withColumn('Actor_', F.concat(actor_df.first_name, F.lit(' '), actor_df.last_name ))\
+        .filter(film_category_df.category_id == Children_category_id)\
+        .select(film_actor_df.actor_id, F.col('Actor_'))\
+        .groupBy(film_actor_df.actor_id, F.col('Actor_'))\
+        .count()\
+        .withColumn('one', F.lit(1))\
+        .withColumnRenamed('count', 'Films_')\
+        .withColumn('dense_rank', F.dense_rank().over(Window.partitionBy("one").orderBy(F.desc("Films_"))))
+
+    top_3_actors_df\
+        .filter(F.col('dense_rank') <= 3)\
+        .select(F.col('Actor_'), F.col('Films_'), F.col('dense_rank'))\
+        .show()
 
 def task_6():
     """
@@ -130,7 +154,40 @@ def task_7():
         городах (customer.address_id в этом city), и которые начинаются на букву “a”.
         То же самое сделать для городов в которых есть символ “-”.
     """
-    pass
+    customer_df = spark.read.jdbc(url=pg_url, table='customer', properties=pg_properties)
+    address_df = spark.read.jdbc(url=pg_url, table='address', properties=pg_properties)
+    city_df = spark.read.jdbc(url=pg_url, table='city', properties=pg_properties)
+
+    special_custumer_cities_df = customer_df\
+        .join(address_df, address_df.address_id == customer_df.address_id , 'inner')\
+        .join(city_df, city_df.city_id == address_df.city_id, 'inner')\
+        .select(customer_df.customer_id, city_df.city)\
+        .filter(city_df.city.rlike("\b[aA]|[-]"))
+    #special_custumer_cities_df.show()
+
+    rental_df = spark.read.jdbc(url=pg_url, table='rental', properties=pg_properties)
+    inventory_df = spark.read.jdbc(url=pg_url, table='inventory', properties=pg_properties)
+    film_category_df = spark.read.jdbc(url=pg_url, table='film_category', properties=pg_properties)
+    category_df = spark.read.jdbc(url=pg_url, table='category', properties=pg_properties)
+
+    popular_category = rental_df\
+        .join(special_custumer_cities_df, special_custumer_cities_df.customer_id == rental_df.customer_id, 'inner')\
+        .join(inventory_df, inventory_df.inventory_id == rental_df.inventory_id , 'inner')\
+        .join(film_category_df, film_category_df.film_id == inventory_df.film_id ,'inner')\
+        .join(category_df, category_df.category_id == film_category_df.category_id , 'inner')\
+        .withColumn('DiffSeconds',\
+            F.to_timestamp(rental_df.return_date).cast("long") - F.to_timestamp(rental_df.rental_date).cast("long"))\
+        .select(category_df.name.alias('Category'), F.col('DiffSeconds'))\
+        
+    popular_category = popular_category\
+        .groupBy(F.col('Category'))\
+        .agg(F.sum(F.col('DiffSeconds')).alias('Sum_secconds'))\
+        .withColumn('Hours', F.col('Sum_secconds') / 3600)\
+        .sort(F.desc('Sum_secconds'))\
+        .select(F.col('Category'), F.col('Hours'))\
+        .limit(1)
+
+    popular_category.show()
 
 
 if __name__ == '__main__':
